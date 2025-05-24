@@ -15,7 +15,7 @@ This app allows users to add tasks with due times, get notified with a sound ale
 
 ## How to Use
 
-1. Open `index.html` in any modern web browser.  
+1. Open `newindex.html` in any modern web browser.  
 2. Click **Enable Sound** once to allow audio notifications.  
 3. Add tasks with a title and due date/time.  
 4. The app will check every second for due tasks and alert you with a beep sound.
