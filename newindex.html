@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Task Reminder with Storage & Sound Unlock</title>
+<style>
+  body {
+    background: linear-gradient(135deg, #72EDF2 10%, #5151E5 100%);
+    color: white;
+    padding: 30px 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  h1, h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    text-shadow: 1px 1px 4px rgba(0,0,0,0.5);
+  }
+
+  label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: 600;
+    font-size: 1.1em;
+  }
+
+  input[type="text"], input[type="number"] {
+    width: 100%;
+    padding: 12px 15px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    border: none;
+    font-size: 1em;
+    box-sizing: border-box;
+    transition: box-shadow 0.3s ease;
+  }
+
+  input[type="text"]:focus, input[type="number"]:focus {
+    outline: none;
+    box-shadow: 0 0 10px 3px #a0c4ff;
+    background-color: #f0f8ff33;
+  }
+
+  button {
+    background-color: #007bff;
+    border: none;
+    color: white;
+    cursor: pointer;
+    border-radius: 25px;
+    padding: 12px 30px;
+    font-size: 1.1em;
+    font-weight: 700;
+    box-shadow: 0 4px 6px rgba(0,123,255,0.6);
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    display: block;
+    margin: 0 auto 30px auto;
+    user-select: none;
+  }
+
+  button:hover {
+    background-color: #0056b3;
+    transform: scale(1.05);
+  }
+
+  ul {
+    list-style: none;
+    padding-left: 0;
+  }
+
+  li {
+    margin-bottom: 15px;
+    padding: 15px 20px;
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 1.15em;
+    user-select: none;
+  }
+
+  li.done {
+    text-decoration: line-through;
+    color: #ccc;
+    background: rgba(0,0,0,0.3);
+  }
+
+  li .task-text {
+    flex-grow: 1;
+  }
+
+  li .reminder {
+    animation: glow 1.5s infinite;
+    color: #ff6b6b;
+    font-weight: 700;
+    margin-left: 10px;
+  }
+
+  li button.mark-done-btn {
+    background-color: #28a745;
+    padding: 8px 15px;
+    border-radius: 15px;
+    font-size: 0.9em;
+    box-shadow: 0 3px 6px rgba(40,167,69,0.6);
+    transition: background-color 0.3s ease, transform 0.2s ease;
+  }
+
+  li button.mark-done-btn:hover {
+    background-color: #1c7c31;
+    transform: scale(1.1);
+  }
+
+  @keyframes glow {
+    0%, 100% { text-shadow: 0 0 6px #ff6b6b, 0 0 10px #ff8787; }
+    50% { text-shadow: 0 0 10px #ff8787, 0 0 14px #ff6b6b; }
+  }
+
+  /* Responsive */
+  @media (max-width: 480px) {
+    body {
+      padding: 20px 10px;
+    }
+    li {
+      font-size: 1em;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    li button.mark-done-btn {
+      margin-top: 8px;
+      align-self: flex-end;
+    }
+  }
+</style>
+</head>
+<body>
+
+<h1>Task Reminder</h1>
+
+<button id="enableSoundBtn">Enable Sound</button>
+
+<label for="taskName">Task Name:</label>
+<input type="text" id="taskName" placeholder="Enter your task" />
+
+<label for="dueMinutes">Due in (minutes):</label>
+<input type="number" id="dueMinutes" placeholder="Minutes" min="1" />
+
+<button onclick="addTask()">Add Task</button>
+
+<h2>Your Tasks</h2>
+<ul id="taskList"></ul>
+
+<!-- Sound beep for reminder -->
+<audio id="beepSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+
+<script>
+  const tasksKey = 'taskReminderTasks';
+  const beepSound = document.getElementById('beepSound');
+  const enableSoundBtn = document.getElementById('enableSoundBtn');
+
+  // Unlock audio on user click
+  enableSoundBtn.addEventListener('click', () => {
+    beepSound.play().then(() => {
+      beepSound.pause();
+      beepSound.currentTime = 0;
+      alert('Sound enabled! Now reminders will beep.');
+      enableSoundBtn.style.display = 'none';
+    }).catch(() => {
+      alert('Click again to enable sound.');
+    });
+  });
+
+  // Load tasks from localStorage or empty array
+  let tasks = JSON.parse(localStorage.getItem(tasksKey)) || [];
+
+  function saveTasks() {
+    localStorage.setItem(tasksKey, JSON.stringify(tasks));
+  }
+
+  function addTask() {
+    const nameInput = document.getElementById('taskName');
+    const dueInput = document.getElementById('dueMinutes');
+    const name = nameInput.value.trim();
+    const dueMinutes = parseInt(dueInput.value);
+
+    if (!name) {
+      alert('Please enter a task name.');
+      return;
+    }
+    if (!dueMinutes || dueMinutes <= 0) {
+      alert('Please enter a valid number of minutes.');
+      return;
+    }
+
+    const dueTime = new Date(Date.now() + dueMinutes * 60000);
+    tasks.push({ name, dueTime: dueTime.toISOString(), done: false });
+
+    saveTasks();
+
+    nameInput.value = '';
+    dueInput.value = '';
+    renderTasks();
+  }
+
+  function renderTasks() {
+    const ul = document.getElementById('taskList');
+    ul.innerHTML = '';
+
+    const now = new Date();
+
+    tasks.forEach((task, index) => {
+      const li = document.createElement('li');
+      if(task.done) li.classList.add('done');
+
+      const dueTime = new Date(task.dueTime);
+      const timeDiff = (dueTime - now) / 60000; // minutes left
+
+      // Create task text span with emoji icon
+      const icon = task.done ? '✅' : '⏳';
+      let reminderText = '';
+      let reminderClass = '';
+
+      if (!task.done) {
+        if (timeDiff <= 0) {
+          reminderText = 'OVERDUE!';
+          reminderClass = 'reminder';
+          playBeep();
+        } else if (timeDiff <= 1) {
+          reminderText = 'Due very soon!';
+          reminderClass = 'reminder';
+          playBeep();
+        }
+      }
+
+      const taskText = document.createElement('span');
+      taskText.className = 'task-text';
+      taskText.innerHTML = `${icon} <strong>${task.name}</strong> (Due in ${timeDiff > 0 ? timeDiff.toFixed(1) : 0} min)`;
+
+      li.appendChild(taskText);
+
+      if (reminderText) {
+        const reminderSpan = document.createElement('span');
+        reminderSpan.className = reminderClass;
+        reminderSpan.textContent = reminderText;
+        li.appendChild(reminderSpan);
+      }
+
+      // Add mark done button if not done
+      if (!task.done) {
+        const doneBtn = document.createElement('button');
+        doneBtn.className = 'mark-done-btn';
+        doneBtn.textContent = 'Mark Done';
+        doneBtn.onclick = () => {
+          tasks[index].done = true;
+          saveTasks();
+          renderTasks();
+        };
+        li.appendChild(doneBtn);
+      }
+
+      ul.appendChild(li);
+    });
+  }
+
+  // Beep sound throttle: avoid playing too many times per interval
+  let lastBeepTime = 0;
+  function playBeep() {
+    const now = Date.now();
+    if (now - lastBeepTime > 10000) { // 10 seconds gap between beeps
+      beepSound.play();
+      lastBeepTime = now;
+    }
+  }
+
+  renderTasks();
+
+  // Auto-update task list every 10 seconds to show reminders & play beep if needed
+  setInterval(renderTasks, 10000);
+</script>
+
+</body>
+</html>
